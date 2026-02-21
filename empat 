@@ -1,0 +1,370 @@
+--[[
+    LOG SNIFFER - MOBILE EDITION v2.0
+    DIBBOT Special
+    Khusus buat HP: tombol gede, layout vertikal, touch optimized
+    Fitur: Remote, Chat, Player, Damage, Pickup, Kill
+]]
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/dibbot/mobile-log/main/main.lua"))()
+
+-- Atau paste langsung:
+
+local MobileSniffer = {
+    Enabled = true,
+    LogRemote = true,
+    LogChat = true,
+    LogPlayer = true,
+    LogDamage = true,
+    LogPickup = true,
+    LogKill = true,
+    MaxLogs = 50, -- Lebih dikit biar ga lag di HP
+    AutoScroll = true
+}
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
+-- GUI Mobile (Full screen tapi bisa di-scroll)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "MobileLogSniffer"
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Main Frame - BESAR buat di-tap
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(1, -20, 1, -20)
+MainFrame.Position = UDim2.new(0, 10, 0, 10)
+MainFrame.BackgroundColor3 = Color3.fromRGB(5, 5, 10)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 15)
+UICorner.Parent = MainFrame
+
+-- Title Bar (lebih gede buat mobile)
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 60)
+TitleBar.BackgroundColor3 = Color3.fromRGB(30, 144, 255)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local UICorner2 = Instance.new("UICorner")
+UICorner2.CornerRadius = UDim.new(0, 15)
+UICorner2.Parent = TitleBar
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -80, 1, 0)
+Title.Position = UDim2.new(0, 20, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "📱 LOG SNIFFER MOBILE"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 24
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TitleBar
+
+-- Close Button (gede)
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 60, 0, 60)
+CloseBtn.Position = UDim2.new(1, -70, 0, 0)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 30
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Parent = TitleBar
+
+local UICorner3 = Instance.new("UICorner")
+UICorner3.CornerRadius = UDim.new(0, 15)
+UICorner3.Parent = CloseBtn
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+    print("[MobileSniffer] Unloaded")
+end)
+
+-- Control Panel (vertikal, pake scrolling)
+local ControlPanel = Instance.new("ScrollingFrame")
+ControlPanel.Size = UDim2.new(1, 0, 0, 200)
+ControlPanel.Position = UDim2.new(0, 0, 0, 70)
+ControlPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+ControlPanel.BorderSizePixel = 0
+ControlPanel.ScrollBarThickness = 8
+ControlPanel.CanvasSize = UDim2.new(0, 0, 0, 350)
+ControlPanel.Parent = MainFrame
+
+local ControlLayout = Instance.new("UIListLayout")
+ControlLayout.Padding = UDim.new(0, 5)
+ControlLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+ControlLayout.Parent = ControlPanel
+
+-- Function bikin toggle mobile
+local function createMobileToggle(name, default, color, callback)
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(0.9, 0, 0, 60)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    toggleFrame.BackgroundTransparency = 0.3
+    toggleFrame.Parent = ControlPanel
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 10)
+    toggleCorner.Parent = toggleFrame
+    
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 50, 0, 50)
+    toggleBtn.Position = UDim2.new(0, 10, 0.5, -25)
+    toggleBtn.BackgroundColor3 = default and color or Color3.fromRGB(80, 80, 80)
+    toggleBtn.Text = ""
+    toggleBtn.BorderSizePixel = 0
+    toggleBtn.Parent = toggleFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(1, 0)
+    btnCorner.Parent = toggleBtn
+    
+    local toggleLabel = Instance.new("TextLabel")
+    toggleLabel.Size = UDim2.new(1, -80, 1, 0)
+    toggleLabel.Position = UDim2.new(0, 70, 0, 0)
+    toggleLabel.BackgroundTransparency = 1
+    toggleLabel.Text = name
+    toggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleLabel.Font = Enum.Font.GothamBold
+    toggleLabel.TextSize = 18
+    toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    toggleLabel.Parent = toggleFrame
+    
+    local state = default
+    toggleBtn.MouseButton1Click:Connect(function()
+        state = not state
+        toggleBtn.BackgroundColor3 = state and color or Color3.fromRGB(80, 80, 80)
+        callback(state)
+    end)
+    
+    return toggleFrame
+end
+
+-- Create toggles (urutan vertikal)
+createMobileToggle("REMOTE EVENTS", true, Color3.fromRGB(255, 150, 0), function(v) MobileSniffer.LogRemote = v end)
+createMobileToggle("CHAT MESSAGES", true, Color3.fromRGB(0, 255, 100), function(v) MobileSniffer.LogChat = v end)
+createMobileToggle("PLAYER ACTIONS", true, Color3.fromRGB(100, 200, 255), function(v) MobileSniffer.LogPlayer = v end)
+createMobileToggle("DAMAGE", true, Color3.fromRGB(255, 50, 50), function(v) MobileSniffer.LogDamage = v end)
+createMobileToggle("PICKUPS", true, Color3.fromRGB(255, 255, 0), function(v) MobileSniffer.LogPickup = v end)
+createMobileToggle("KILLS", true, Color3.fromRGB(255, 50, 255), function(v) MobileSniffer.LogKill = v end)
+
+-- Clear button (gede)
+local ClearBtn = Instance.new("TextButton")
+ClearBtn.Size = UDim2.new(0.9, 0, 0, 60)
+ClearBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+ClearBtn.Text = "🗑️ CLEAR ALL LOGS"
+ClearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ClearBtn.Font = Enum.Font.GothamBold
+ClearBtn.TextSize = 22
+ClearBtn.BorderSizePixel = 0
+ClearBtn.Parent = ControlPanel
+
+local clearCorner = Instance.new("UICorner")
+clearCorner.CornerRadius = UDim.new(0, 10)
+clearCorner.Parent = ClearBtn
+
+-- Log Display (sisa layar)
+local LogFrame = Instance.new("Frame")
+LogFrame.Size = UDim2.new(1, -20, 1, -300)
+LogFrame.Position = UDim2.new(0, 10, 0, 280)
+LogFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+LogFrame.BorderSizePixel = 0
+LogFrame.Parent = MainFrame
+
+local UICorner5 = Instance.new("UICorner")
+UICorner5.CornerRadius = UDim.new(0, 10)
+UICorner5.Parent = LogFrame
+
+local LogList = Instance.new("ScrollingFrame")
+LogList.Size = UDim2.new(1, -10, 1, -10)
+LogList.Position = UDim2.new(0, 5, 0, 5)
+LogList.BackgroundTransparency = 1
+LogList.ScrollBarThickness = 6
+LogList.CanvasSize = UDim2.new(0, 0, 0, 0)
+LogList.Parent = LogFrame
+
+local LogLayout = Instance.new("UIListLayout")
+LogLayout.Padding = UDim.new(0, 4)
+LogLayout.Parent = LogList
+
+-- Log storage
+local logs = {}
+local logCount = 0
+
+-- Helper functions
+local function getTime()
+    return os.date("%H:%M:%S")
+end
+
+local function addLog(category, message, color)
+    if not MobileSniffer.Enabled then return end
+    
+    -- Filter
+    if category == "REMOTE" and not MobileSniffer.LogRemote then return end
+    if category == "CHAT" and not MobileSniffer.LogChat then return end
+    if category == "PLAYER" and not MobileSniffer.LogPlayer then return end
+    if category == "DAMAGE" and not MobileSniffer.LogDamage then return end
+    if category == "PICKUP" and not MobileSniffer.LogPickup then return end
+    if category == "KILL" and not MobileSniffer.LogKill then return end
+    
+    -- Log entry (font lebih gede buat mobile)
+    local logEntry = Instance.new("Frame")
+    logEntry.Size = UDim2.new(1, 0, 0, 40)
+    logEntry.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    logEntry.BorderSizePixel = 0
+    
+    local entryCorner = Instance.new("UICorner")
+    entryCorner.CornerRadius = UDim.new(0, 6)
+    entryCorner.Parent = logEntry
+    
+    local timeLabel = Instance.new("TextLabel")
+    timeLabel.Size = UDim2.new(0, 60, 1, 0)
+    timeLabel.BackgroundTransparency = 1
+    timeLabel.Text = getTime()
+    timeLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+    timeLabel.Font = Enum.Font.Code
+    timeLabel.TextSize = 14
+    timeLabel.TextXAlignment = Enum.TextXAlignment.Center
+    timeLabel.Parent = logEntry
+    
+    local catLabel = Instance.new("TextLabel")
+    catLabel.Size = UDim2.new(0, 70, 1, 0)
+    catLabel.Position = UDim2.new(0, 60, 0, 0)
+    catLabel.BackgroundTransparency = 1
+    catLabel.Text = "[" .. category .. "]"
+    catLabel.TextColor3 = color or Color3.fromRGB(100, 200, 255)
+    catLabel.Font = Enum.Font.Code
+    catLabel.TextSize = 14
+    catLabel.TextXAlignment = Enum.TextXAlignment.Center
+    catLabel.Parent = logEntry
+    
+    local msgLabel = Instance.new("TextLabel")
+    msgLabel.Size = UDim2.new(1, -140, 1, 0)
+    msgLabel.Position = UDim2.new(0, 130, 0, 0)
+    msgLabel.BackgroundTransparency = 1
+    msgLabel.Text = message
+    msgLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    msgLabel.Font = Enum.Font.Code
+    msgLabel.TextSize = 14
+    msgLabel.TextXAlignment = Enum.TextXAlignment.Left
+    msgLabel.TextWrapped = true
+    msgLabel.Parent = logEntry
+    
+    logEntry.Parent = LogList
+    
+    table.insert(logs, logEntry)
+    logCount = logCount + 1
+    
+    if logCount > MobileSniffer.MaxLogs then
+        local oldest = table.remove(logs, 1)
+        if oldest then oldest:Destroy() end
+        logCount = logCount - 1
+    end
+    
+    if MobileSniffer.AutoScroll then
+        task.wait()
+        LogList.CanvasPosition = Vector2.new(0, LogList.CanvasSize.Y.Offset)
+    end
+end
+
+ClearBtn.MouseButton1Click:Connect(function()
+    for _, log in ipairs(logs) do
+        log:Destroy()
+    end
+    table.clear(logs)
+    logCount = 0
+end)
+
+-- ===== SNIFFER FUNCTIONS (sama seperti versi PC) =====
+-- (Copy dari script sebelumnya, disingkat biar ga terlalu panjang)
+
+-- Remote sniffer
+local function hookRemote(remote)
+    if remote:IsA("RemoteEvent") then
+        local old = remote.FireServer
+        remote.FireServer = function(s, ...)
+            local args = {...}
+            local str = ""
+            for i=1, math.min(2, #args) do
+                str = str .. tostring(args[i]) .. (i < #args and ", " or "")
+            end
+            if #args > 2 then str = str .. "..." end
+            addLog("REMOTE", remote.Name .. "(" .. str .. ")", Color3.fromRGB(255, 150, 0))
+            return old(s, ...)
+        end
+    end
+end
+
+for _, v in ipairs(ReplicatedStorage:GetDescendants()) do hookRemote(v) end
+ReplicatedStorage.DescendantAdded:Connect(function(v) task.wait(0.1); hookRemote(v) end)
+
+-- Chat sniffer
+for _, p in ipairs(Players:GetPlayers()) do
+    p.Chatted:Connect(function(m) addLog("CHAT", p.Name .. ": " .. m, Color3.fromRGB(0, 255, 100)) end)
+end
+Players.PlayerAdded:Connect(function(p)
+    p.Chatted:Connect(function(m) addLog("CHAT", p.Name .. ": " .. m, Color3.fromRGB(0, 255, 100)) end)
+end)
+
+-- Player join/leave
+Players.PlayerAdded:Connect(function(p) addLog("PLAYER", p.Name .. " joined", Color3.fromRGB(100, 200, 255)) end)
+Players.PlayerRemoving:Connect(function(p) addLog("PLAYER", p.Name .. " left", Color3.fromRGB(255, 100, 100)) end)
+
+-- Damage & kill
+local function onChar(char)
+    local hum = char:WaitForChild("Humanoid")
+    hum.HealthChanged:Connect(function()
+        if hum.Health < (hum.Health + 10) then
+            addLog("DAMAGE", char.Name .. " took damage", Color3.fromRGB(255, 50, 50))
+        end
+    end)
+    hum.Died:Connect(function() addLog("KILL", char.Name .. " died", Color3.fromRGB(255, 0, 255)) end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    if p.Character then onChar(p.Character) end
+    p.CharacterAdded:Connect(onChar)
+end
+
+-- Pickup
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("BasePart") and (obj.Name:lower():find("item") or obj.Name:lower():find("loot")) then
+        obj.Touched:Connect(function(hit)
+            if hit.Parent == LocalPlayer.Character then
+                addLog("PICKUP", "Picked up " .. obj.Name, Color3.fromRGB(255, 255, 0))
+            end
+        end)
+    end
+end)
+
+-- Output
+game:GetService("LogService").MessageOut:Connect(function(msg, t)
+    if t == Enum.MessageType.MessageOutput then
+        addLog("OUTPUT", msg, Color3.fromRGB(150, 150, 150))
+    elseif t == Enum.MessageType.MessageError then
+        addLog("ERROR", msg, Color3.fromRGB(255, 0, 0))
+    end
+end)
+
+print([[
+╔══════════════════════════════════╗
+║    LOG SNIFFER - MOBILE EDITION  ║
+╠══════════════════════════════════╣
+║    ✓ Touch optimized             ║
+║    ✓ Tombol gede                 ║
+║    ✓ Font gede                   ║
+║    ✓ Auto scroll                 ║
+╚══════════════════════════════════╝
+]])
