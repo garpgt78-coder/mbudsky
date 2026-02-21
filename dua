@@ -1,0 +1,210 @@
+--[[
+    LOG SNIFFER - CHAT EDITION
+    DIBBOT Mobile Special
+    Semua log muncul di kolom chat Roblox
+    Gak perlu GUI, tinggal execute
+]]
+
+local ChatSniffer = {
+    LogRemote = true,
+    LogChat = true,
+    LogPlayer = true,
+    LogDamage = true,
+    LogPickup = true,
+    LogKill = true,
+    ColorChat = true -- Warna-warni di chat
+}
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local StarterGui = game:GetService("StarterGui")
+
+-- Fungsi kirim ke chat
+local function sendToChat(msg, color)
+    if not msg then return end
+    
+    -- Pake Color3 kalo mau warna
+    if ChatSniffer.ColorChat and color then
+        StarterGui:SetCore("ChatMakeSystemMessage", {
+            Text = msg,
+            Color = color
+        })
+    else
+        -- Fallback: display message biasa
+        game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents"):FindFirstChild("SayMessageRequest"):FireServer(msg, "All")
+    end
+end
+
+-- Format time
+local function getTime()
+    return os.date("%H:%M:%S")
+end
+
+-- Warna-warna
+local colors = {
+    remote = Color3.fromRGB(255, 150, 0),
+    chat = Color3.fromRGB(0, 255, 100),
+    player = Color3.fromRGB(100, 200, 255),
+    damage = Color3.fromRGB(255, 50, 50),
+    pickup = Color3.fromRGB(255, 255, 0),
+    kill = Color3.fromRGB(255, 50, 255),
+    output = Color3.fromRGB(150, 150, 150),
+    error = Color3.fromRGB(255, 0, 0)
+}
+
+-- ===== SNIFFER =====
+
+-- 1. Remote Events
+local function hookRemote(remote)
+    if remote:IsA("RemoteEvent") then
+        local old = remote.FireServer
+        remote.FireServer = function(self, ...)
+            local args = {...}
+            local argsStr = ""
+            for i = 1, math.min(3, #args) do
+                argsStr = argsStr .. tostring(args[i])
+                if i < #args then argsStr = argsStr .. ", " end
+            end
+            if #args > 3 then argsStr = argsStr .. "..." end
+            
+            if ChatSniffer.LogRemote then
+                sendToChat(string.format("[%s] 🔸 REMOTE: %s(%s)", getTime(), remote.Name, argsStr), colors.remote)
+            end
+            
+            return old(self, ...)
+        end
+    end
+end
+
+for _, v in ipairs(ReplicatedStorage:GetDescendants()) do hookRemote(v) end
+ReplicatedStorage.DescendantAdded:Connect(function(v) task.wait(0.1); hookRemote(v) end)
+
+-- 2. Chat Messages (biar gak loop)
+local function onChat(player, msg)
+    if player == LocalPlayer then return end -- Jangan log chat sendiri biar gak spam
+    if ChatSniffer.LogChat then
+        sendToChat(string.format("[%s] 💬 %s: %s", getTime(), player.Name, msg), colors.chat)
+    end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    p.Chatted:Connect(function(m) onChat(p, m) end)
+end
+
+Players.PlayerAdded:Connect(function(p)
+    p.Chatted:Connect(function(m) onChat(p, m) end)
+end)
+
+-- 3. Player Join/Leave
+Players.PlayerAdded:Connect(function(p)
+    if ChatSniffer.LogPlayer then
+        sendToChat(string.format("[%s] ➕ %s joined the game", getTime(), p.Name), colors.player)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    if ChatSniffer.LogPlayer then
+        sendToChat(string.format("[%s] ➖ %s left the game", getTime(), p.Name), colors.player)
+    end
+end)
+
+-- 4. Damage & Kill
+local function onCharacter(char)
+    local hum = char:WaitForChild("Humanoid")
+    
+    hum.HealthChanged:Connect(function()
+        if hum.Health < (hum.Health + 20) and hum.Health > 0 then
+            if ChatSniffer.LogDamage then
+                sendToChat(string.format("[%s] 💔 %s took damage (%d/%d)", getTime(), char.Name, math.floor(hum.Health), hum.MaxHealth), colors.damage)
+            end
+        end
+    end)
+    
+    hum.Died:Connect(function()
+        if ChatSniffer.LogKill then
+            -- Cek siapa yang bunuh
+            local killer = hum:FindFirstChild("Killer") or hum:FindFirstChild("Creator")
+            if killer and killer.Value then
+                sendToChat(string.format("[%s] 🔪 %s was killed by %s", getTime(), char.Name, killer.Value.Name), colors.kill)
+            else
+                sendToChat(string.format("[%s] 💀 %s died", getTime(), char.Name), colors.kill)
+            end
+        end
+    end)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+    if p.Character then onCharacter(p.Character) end
+    p.CharacterAdded:Connect(onCharacter)
+end
+
+-- 5. Pickup Items
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("BasePart") and (obj.Name:lower():find("item") or obj.Name:lower():find("loot") or obj.Name:lower():find("drop")) then
+        obj.Touched:Connect(function(hit)
+            if hit.Parent == LocalPlayer.Character then
+                if ChatSniffer.LogPickup then
+                    sendToChat(string.format("[%s] 📦 Picked up: %s", getTime(), obj.Name), colors.pickup)
+                end
+            end
+        end)
+    end
+end)
+
+-- 6. Scan item yang udah ada
+for _, obj in ipairs(workspace:GetDescendants()) do
+    if obj:IsA("BasePart") and (obj.Name:lower():find("item") or obj.Name:lower():find("loot") or obj.Name:lower():find("drop")) then
+        obj.Touched:Connect(function(hit)
+            if hit.Parent == LocalPlayer.Character then
+                if ChatSniffer.LogPickup then
+                    sendToChat(string.format("[%s] 📦 Picked up: %s", getTime(), obj.Name), colors.pickup)
+                end
+            end
+        end)
+    end
+end
+
+-- 7. Output console
+game:GetService("LogService").MessageOut:Connect(function(msg, msgType)
+    if msgType == Enum.MessageType.MessageOutput then
+        sendToChat(string.format("[%s] 📟 %s", getTime(), msg), colors.output)
+    elseif msgType == Enum.MessageType.MessageError then
+        sendToChat(string.format("[%s] ❌ ERROR: %s", getTime(), msg), colors.error)
+    end
+end)
+
+-- 8. Player position changes (optional, bisa dimatiin kalo spam)
+local lastPos = {}
+RunService.Heartbeat:Connect(function()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local root = p.Character.HumanoidRootPart
+            local pos = root.Position
+            local last = lastPos[p]
+            
+            if last and (pos - last).Magnitude > 50 then -- Teleport atau lompat jauh
+                if ChatSniffer.LogPlayer then
+                    sendToChat(string.format("[%s] 🚀 %s moved to (%.0f, %.0f, %.0f)", getTime(), p.Name, pos.X, pos.Y, pos.Z), colors.player)
+                end
+            end
+            lastPos[p] = pos
+        end
+    end
+end)
+
+-- Start message
+task.wait(1)
+sendToChat("══════════════════════════════════", Color3.fromRGB(0, 255, 255))
+sendToChat("   📱 LOG SNIFFER - CHAT EDITION   ", Color3.fromRGB(0, 255, 255))
+sendToChat("        DIBBOT Mobile Special      ", Color3.fromRGB(0, 255, 255))
+sendToChat("══════════════════════════════════", Color3.fromRGB(0, 255, 255))
+sendToChat("✅ Active! Monitoring:", Color3.fromRGB(100, 255, 100))
+sendToChat("   • Remote Events", colors.remote)
+sendToChat("   • Chat Messages", colors.chat)
+sendToChat("   • Player Actions", colors.player)
+sendToChat("   • Damage", colors.damage)
+sendToChat("   • Pickups", colors.pickup)
+sendToChat("   • Kills", colors.kill)
+sendToChat("══════════════════════════════════", Color3.fromRGB(0, 255, 255))
