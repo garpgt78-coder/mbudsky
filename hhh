@@ -1,0 +1,36 @@
+function taro_bl()
+  local args = {
+	"Place",
+	"Pirate"
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Card"):FireServer(unpack(args))
+end
+
+function taro_naruto()
+  local args = {
+	"Place",
+	"Ninja"
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Card"):FireServer(unpack(args))
+end
+
+function taro_bleach()
+  local args = {
+	"Place",
+	"Soul"
+}
+game:GetService("ReplicatedStorage"):WaitForChild("Remotes"):WaitForChild("Card"):FireServer(unpack(args))
+end
+
+
+
+
+
+
+while true do
+  
+  taro_bleach()
+  taro_bl()
+  taro_naruto()
+end
+  
