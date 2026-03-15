@@ -1,8 +1,8 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "Auto Egg Opener",
-   LoadingTitle = "Loading Script...",
+   Name = "Auto Egg Opener v2",
+   LoadingTitle = "Menyiapkan Script...",
    LoadingSubtitle = "by Gemini",
    ConfigurationSaving = {
       Enabled = true,
@@ -11,40 +11,44 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
--- Variabel Default
-local _G = {
+-- Variabel Global untuk Kontrol
+local Settings = {
     loop = false,
     delay = 0.5
 }
 
--- Fungsi Utama
+-- Fungsi Utama untuk Remote Baru
 local function buka()
     local args = {
         "Valentine Event",
         3
     }
-    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("6e3def40-5155-42d2-b3a0-ca4391f39e04")
-    if remote then
-        remote:WaitForChild("Functions"):WaitForChild("OpenEgg"):InvokeServer(unpack(args))
+    
+    -- Menggunakan ID baru yang kamu berikan
+    local targetRemote = game:GetService("ReplicatedStorage"):WaitForChild("9e1f9495-9794-4405-a17a-41d2592a826c", 5)
+    
+    if targetRemote then
+        targetRemote:WaitForChild("Functions"):WaitForChild("OpenEgg"):InvokeServer(unpack(args))
+    else
+        warn("Remote Storage tidak ditemukan! Cek kembali ID-nya.")
     end
 end
 
--- Tab Utama
-local MainTab = Window:CreateTab("Settings", 4483362458) -- Icon ID
+-- Tab Settings
+local MainTab = Window:CreateTab("Utama", 4483362458)
 
--- Toggle On/Off
-local Toggle = MainTab:CreateToggle({
-   Name = "Auto Open Egg",
+-- Toggle untuk On/Off
+MainTab:CreateToggle({
+   Name = "Mulai Auto Open",
    CurrentValue = false,
    Flag = "EggToggle", 
    Callback = function(Value)
-      _G.loop = Value
+      Settings.loop = Value
       if Value then
-          -- Menjalankan loop di thread terpisah agar GUI tidak freeze
           task.spawn(function()
-              while _G.loop do
+              while Settings.loop do
                   buka()
-                  task.wait(_G.delay)
+                  task.wait(Settings.delay)
               end
           end)
       end
@@ -52,21 +56,21 @@ local Toggle = MainTab:CreateToggle({
 })
 
 -- Slider untuk Jeda (task.wait)
-local Slider = MainTab:CreateSlider({
-   Name = "Delay Speed (Detik)",
-   Range = {0.1, 5},
+MainTab:CreateSlider({
+   Name = "Kecepatan Jeda (Detik)",
+   Range = {0.1, 10},
    Increment = 0.1,
-   Suffix = "s",
+   Suffix = " detik",
    CurrentValue = 0.5,
    Flag = "DelaySlider",
    Callback = function(Value)
-      _G.delay = Value
+      Settings.delay = Value
    end,
 })
 
 Rayfield:Notify({
-   Title = "Script Ready!",
-   Content = "Atur delay dan nyalakan toggle untuk memulai.",
+   Title = "Script Berhasil Dimuat",
+   Content = "Remote ID telah diperbarui. Selamat mencoba!",
    Duration = 5,
    Image = 4483362458,
 })
